@@ -95,6 +95,9 @@ def fbank(spectrum = None, num_filter = num_filter,fs=fs):
         :returns: fbank feature, a num_frames by num_filter array 
         DON'T FORGET LOG OPRETION AFTER MEL FILTER!
     """
+    print(spectrum.shape,fs)    #(356, 257) 16000
+    #(356, 257) -> (356, 23)
+
     feats=np.zeros([spectrum.shape[0], num_filter])
     fl=0
     fh=fs/2
@@ -102,8 +105,13 @@ def fbank(spectrum = None, num_filter = num_filter,fs=fs):
     mel_fl=0
     mel_fh=2595*np.log10(1+fh/700)
     mel_points=np.linspace(mel_fl,mel_fh,num_filter+2)  #按滤波器个数分成n个长度一样的滤波器
+    print(mel_points,len(mel_points))   #长度为25的在mel频域上的等差数列
+    # sys.exit()
     bin=np.floor((num_fft+1)*mel_points/fs)
     fb=np.zeros([num_filter,int(np.floor(num_fft))])
+    print(bin,bin.shape)
+    print(fb,fb.shape)
+
     for m in range(1,num_filter+1):
         f_m_minus=int(bin[m-1])
         f_m=int(bin[m])
@@ -154,10 +162,10 @@ def main():
     fbank_feats = fbank(spectrum=spectrum,num_filter = num_filter,fs=fs)
     mfcc_feats = mfcc(fbank_feats)
 
-    plot_spectrogram(fbank_feats.T, 'Filter Bank','fbank.png')
-    write_file(fbank_feats,'./test.fbank')
-    plot_spectrogram(mfcc_feats.T, 'MFCC','mfcc.png')
-    write_file(mfcc_feats,'./test.mfcc')
+    # plot_spectrogram(fbank_feats.T, 'Filter Bank','fbank.png')
+    # write_file(fbank_feats,'./test.fbank')
+    # plot_spectrogram(mfcc_feats.T, 'MFCC','mfcc.png')
+    # write_file(mfcc_feats,'./test.mfcc')
 
 if __name__ == '__main__':
     main()
