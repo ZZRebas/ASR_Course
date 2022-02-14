@@ -86,6 +86,8 @@ def get_spectrum(frames, fft_len=fft_len):
     cFFT = np.fft.fft(frames, n=fft_len)
     valid_len = int(fft_len / 2 ) + 1
     spectrum = np.abs(cFFT[:,0:valid_len])
+    # print(cFFT,cFFT.shape)  #(356, 512)
+    # print(spectrum,spectrum.shape)  #(356, 257)
     return spectrum
 
 def fbank(spectrum = None, num_filter = num_filter,fs=fs):
@@ -95,33 +97,53 @@ def fbank(spectrum = None, num_filter = num_filter,fs=fs):
         :returns: fbank feature, a num_frames by num_filter array 
         DON'T FORGET LOG OPRETION AFTER MEL FILTER!
     """
-    print(spectrum.shape,fs)    #(356, 257) 16000
+    #此函数内容参考：http://fancyerii.github.io/books/mfcc/
+
+    # print(spectrum,spectrum.shape,fs)    #(356, 257) 16000
     #(356, 257) -> (356, 23)
 
+    #功率谱
+    pow_frames=1/fft_len*np.square(spectrum)
+    # print(pow_frames,pow_frames.shape)  #(356, 257)
+
     feats=np.zeros([spectrum.shape[0], num_filter])
-    fl=0
+
     fh=fs/2
     num_fft=spectrum.shape[1]   #257
     mel_fl=0
     mel_fh=2595*np.log10(1+fh/700)
     mel_points=np.linspace(mel_fl,mel_fh,num_filter+2)  #按滤波器个数分成n个长度一样的滤波器
-    print(mel_points,len(mel_points))   #长度为25的在mel频域上的等差数列
+    print(mel_points,len(mel_points))   #长度为25的在mel频域上的等差数列，即平均分为23个滤波器
     # sys.exit()
-    bin=np.floor((num_fft+1)*mel_points/fs)
-    fb=np.zeros([num_filter,int(np.floor(num_fft))])
-    print(bin,bin.shape)
-    print(fb,fb.shape)
 
-    for m in range(1,num_filter+1):
-        f_m_minus=int(bin[m-1])
-        f_m=int(bin[m])
-        f_m_plus=int(bin[m+1])
-        for k in range(f_m_minus,f_m):
-            fb[m-1,k]=(k-bin[m-1])/(bin[m]-bin[m-1])
-        for k in range(f_m,f_m_plus):
-            fb[m-1,k]=(bin[m+1]-k)/(bin[m+1]-bin[m])
-    filter_banks=np.dot(spectrum,fb.T)
-    feats=np.log(filter_banks)
+    #还应把mel频率转换为标准频率
+    hz_points=700*(10**(mel_points/2595)-1)
+    print(hz_points,hz_points.shape)    #(25,),这是按mel频率划分的23个滤波器的频率点
+
+    bin=np.floor((fft_len+1)*hz_points/fs)     #因为FFT的频率没办法精确的与上面的频率对应，因此需把它们对应到最近的bin里面
+    print(bin,bin.shape)    #(25,)
+    #[  0.   2.   5.   8.  11.  15.  19.  24.  29.  35.  41.  48.  56.  65.  75.  85.  97. 111. 126. 142. 160. 181. 203. 228. 256.]
+
+    fb=np.zeros([num_filter,int(np.floor(num_fft))])    #设计滤波器的形状为（23，257）
+    # print(fb,fb.shape)      #(23, 257)
+    # sys.exit()
+
+    for m in range(1,num_filter+1): #遍历23个滤波器
+        start=bin[m-1]
+        mid=bin[m]
+        end=bin[m+1]
+        for k in range(int(start),int(mid)):
+            fb[m-1,k]=(k-start)/(mid-start)
+        for k in range(int(mid),int(end)):
+            fb[m-1,k]=(end-k)/(end-mid)
+    print(fb,fb.shape)  #fb就为设计好的mel滤波器
+
+    # filter_banks=np.dot(spectrum,fb.T)    #输入特征与mel滤波器进行卷积（矩阵乘法）
+    filter_banks=np.dot(pow_frames,fb.T)    #这里用功率谱与mel滤波器相乘
+
+    feats=np.log(filter_banks)          #再取对数，就得FBank特征
+    print(filter_banks,filter_banks.shape)  #(356, 23)
+    print(feats,feats.shape)
 
     return feats
 
